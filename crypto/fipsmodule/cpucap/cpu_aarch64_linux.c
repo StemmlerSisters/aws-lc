@@ -80,13 +80,24 @@ void OPENSSL_cpuid_setup(void) {
   // is supported. As of Valgrind 3.21 trying to read from that register will
   // cause Valgrind to crash.
   if (hwcap & kCPUID) {
-    // Check if the CPU model is Neoverse V1,
+    // Check if the CPU model is Neoverse V1 or V2,
     // which has a wide crypto/SIMD pipeline.
     OPENSSL_arm_midr = armv8_cpuid_probe();
     if (MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V1)) {
       OPENSSL_armcap_P |= ARMV8_NEOVERSE_V1;
     }
+    if (MIDR_IS_CPU_MODEL(OPENSSL_arm_midr, ARM_CPU_IMP_ARM, ARM_CPU_PART_V2)) {
+      OPENSSL_armcap_P |= ARMV8_NEOVERSE_V2;
+    }
   }
+
+#if defined(MAKE_DIT_AVAILABLE)
+  static const unsigned long kDIT = 1 << 24;
+  // Before enabling/disabling the DIT flag, check it's available in HWCAP
+  if (hwcap & kDIT) {
+    OPENSSL_armcap_P |= ARMV8_DIT;
+  }
+#endif  // MAKE_DIT_AVAILABLE
 
   // OPENSSL_armcap is a 32-bit, unsigned value which may start with "0x" to
   // indicate a hex value. Prior to the 32-bit value, a '~' or '|' may be given.

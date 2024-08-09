@@ -118,26 +118,21 @@ static const X509_PURPOSE xstandard[] = {
      (char *)"timestampsign", NULL},
 };
 
-// As much as I'd like to make X509_check_purpose use a "const" X509* I
-// really can't because it does recalculate hashes and do other non-const
-// things. If |id| is -1 it just calls |x509v3_cache_extensions| for its
-// side-effect.
-// Returns 1 on success, 0 if x does not allow purpose, -1 on (internal) error.
 int X509_check_purpose(X509 *x, int id, int ca) {
-  int idx;
-  const X509_PURPOSE *pt;
+  // This differs from OpenSSL, which uses -1 to indicate a fatal error and 0 to
+  // indicate an invalid certificate. BoringSSL uses 0 for both.
   if (!x509v3_cache_extensions(x)) {
-    return -1;
+    return 0;
   }
 
   if (id == -1) {
     return 1;
   }
-  idx = X509_PURPOSE_get_by_id(id);
+  int idx = X509_PURPOSE_get_by_id(id);
   if (idx == -1) {
-    return -1;
+    return 0;
   }
-  pt = X509_PURPOSE_get0(idx);
+  const X509_PURPOSE *pt = X509_PURPOSE_get0(idx);
   return pt->check_purpose(pt, x, ca);
 }
 
@@ -442,6 +437,10 @@ static int check_purpose_ssl_client(const X509_PURPOSE *xp, const X509 *x,
     return 0;
   }
   if (ca) {
+    // TODO(davidben): Move the various |check_ca| calls out of the
+    // |check_purpose| callbacks. Those checks are purpose-independent. They are
+    // also redundant when called from |X509_verify_cert|, though
+    // not when |X509_check_purpose| is called directly.
     return check_ca(x);
   }
   // We need to do digital signatures or key agreement
@@ -483,8 +482,7 @@ static int check_purpose_ssl_server(const X509_PURPOSE *xp, const X509 *x,
 
 static int check_purpose_ns_ssl_server(const X509_PURPOSE *xp, const X509 *x,
                                        int ca) {
-  int ret;
-  ret = check_purpose_ssl_server(xp, x, ca);
+  int ret = check_purpose_ssl_server(xp, x, ca);
   if (!ret || ca) {
     return ret;
   }
@@ -517,8 +515,7 @@ static int purpose_smime(const X509 *x, int ca) {
 
 static int check_purpose_smime_sign(const X509_PURPOSE *xp, const X509 *x,
                                     int ca) {
-  int ret;
-  ret = purpose_smime(x, ca);
+  int ret = purpose_smime(x, ca);
   if (!ret || ca) {
     return ret;
   }
@@ -530,8 +527,7 @@ static int check_purpose_smime_sign(const X509_PURPOSE *xp, const X509 *x,
 
 static int check_purpose_smime_encrypt(const X509_PURPOSE *xp, const X509 *x,
                                        int ca) {
-  int ret;
-  ret = purpose_smime(x, ca);
+  int ret = purpose_smime(x, ca);
   if (!ret || ca) {
     return ret;
   }
@@ -565,8 +561,6 @@ static int ocsp_helper(const X509_PURPOSE *xp, const X509 *x, int ca) {
 
 static int check_purpose_timestamp_sign(const X509_PURPOSE *xp, const X509 *x,
                                         int ca) {
-  int i_ext;
-
   // If ca is true we must return if this is a valid CA certificate.
   if (ca) {
     return check_ca(x);
@@ -590,9 +584,9 @@ static int check_purpose_timestamp_sign(const X509_PURPOSE *xp, const X509 *x,
   }
 
   // Extended Key Usage MUST be critical
-  i_ext = X509_get_ext_by_NID((X509 *)x, NID_ext_key_usage, -1);
+  int i_ext = X509_get_ext_by_NID(x, NID_ext_key_usage, -1);
   if (i_ext >= 0) {
-    const X509_EXTENSION *ext = X509_get_ext((X509 *)x, i_ext);
+    const X509_EXTENSION *ext = X509_get_ext(x, i_ext);
     if (!X509_EXTENSION_get_critical(ext)) {
       return 0;
     }

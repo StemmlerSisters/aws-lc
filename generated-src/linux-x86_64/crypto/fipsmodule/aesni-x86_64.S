@@ -13,6 +13,7 @@
 .align	16
 aes_hw_encrypt:
 .cfi_startproc	
+_CET_ENDBR
 #ifdef BORINGSSL_DISPATCH_TEST
 .extern	BORINGSSL_function_hit
 .hidden BORINGSSL_function_hit
@@ -45,6 +46,7 @@ aes_hw_encrypt:
 .align	16
 aes_hw_decrypt:
 .cfi_startproc	
+_CET_ENDBR
 	movups	(%rdi),%xmm2
 	movl	240(%rdx),%eax
 	movups	(%rdx),%xmm0
@@ -533,6 +535,7 @@ _aesni_decrypt8:
 .align	16
 aes_hw_ecb_encrypt:
 .cfi_startproc	
+_CET_ENDBR
 	andq	$-16,%rdx
 	jz	.Lecb_ret
 
@@ -878,10 +881,12 @@ aes_hw_ecb_encrypt:
 .align	16
 aes_hw_ctr32_encrypt_blocks:
 .cfi_startproc	
+_CET_ENDBR
 #ifdef BORINGSSL_DISPATCH_TEST
 	movb	$1,BORINGSSL_function_hit(%rip)
 #endif
 	cmpq	$1,%rdx
+	jb	.Lctr32_epilogue
 	jne	.Lctr32_bulk
 
 
@@ -1463,6 +1468,7 @@ aes_hw_ctr32_encrypt_blocks:
 .align	16
 aes_hw_xts_encrypt:
 .cfi_startproc	
+_CET_ENDBR
 	leaq	(%rsp),%r11
 .cfi_def_cfa_register	%r11
 	pushq	%rbp
@@ -1934,6 +1940,7 @@ aes_hw_xts_encrypt:
 .align	16
 aes_hw_xts_decrypt:
 .cfi_startproc	
+_CET_ENDBR
 	leaq	(%rsp),%r11
 .cfi_def_cfa_register	%r11
 	pushq	%rbp
@@ -2442,6 +2449,7 @@ aes_hw_xts_decrypt:
 .align	16
 aes_hw_cbc_encrypt:
 .cfi_startproc	
+_CET_ENDBR
 	testq	%rdx,%rdx
 	jz	.Lcbc_ret
 
@@ -3035,6 +3043,7 @@ aes_hw_cbc_encrypt:
 .align	16
 aes_hw_set_decrypt_key:
 .cfi_startproc	
+_CET_ENDBR
 .byte	0x48,0x83,0xEC,0x08
 .cfi_adjust_cfa_offset	8
 	call	__aesni_set_encrypt_key
@@ -3081,6 +3090,7 @@ aes_hw_set_decrypt_key:
 aes_hw_set_encrypt_key:
 __aesni_set_encrypt_key:
 .cfi_startproc	
+_CET_ENDBR
 #ifdef BORINGSSL_DISPATCH_TEST
 	movb	$1,BORINGSSL_function_hit+3(%rip)
 #endif
